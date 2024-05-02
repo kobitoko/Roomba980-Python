@@ -37,6 +37,24 @@ Tested with Python 3.6/Ubuntu 18.04
 * I have not tested on Windows, or anything othe than Ubuntu 18.04. use at your own risk on any other platform/OS
 * PyPi install is not supported (yet) The version on PyPi is the 1.x version!
 
+Windows 11 (with gitbash) assuming python 3.6 is installed:
+```
+py -3.6 -m venv venv
+```
+```
+source venv/Scripts/activate
+```
+```
+pip install -r requirementsNoOpenCv.txt
+```
+```
+cd roomba/
+```
+Edit `MyRoombaScript.py` as you like
+```
+python roomba/MyRoombaScript.py
+```
+
 ## Features
 * Get your username/password easily (for multiple robots)
 * Auto discovery robot IP (optional)

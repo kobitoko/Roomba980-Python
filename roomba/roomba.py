@@ -448,6 +448,7 @@ class Roomba(object):
         self.update_seconds = 300           #update with all values every 5 minutes
         self.show_final_map = True
         self.client = None                  #Roomba MQTT client
+        self.brokerFeedback = '/roomba/feedback'
         self.roombas_config = {}            #Roomba configuration loaded from config file
         self.history = {}
         self.timers = {}
@@ -528,9 +529,9 @@ class Roomba(object):
                 #self.client._ssl_context = None
                 context = ssl.SSLContext()
                 # Either of the following context settings works - choose one
+                context.set_ciphers('HIGH:!DH:!aNULL')
                 # Needed for 980 and earlier robots as their security level is 1.
-                # context.set_ciphers('HIGH:!DH:!aNULL')
-                context.set_ciphers('DEFAULT@SECLEVEL=1')
+                #context.set_ciphers('DEFAULT@SECLEVEL=1')
                 self.client.tls_set_context(context)
             except Exception as e:
                 self.log.exception("Error setting TLS: {}".format(e))
@@ -558,7 +559,7 @@ class Roomba(object):
             return False
         count = 0
         max_retries = 3
-        retry_timeout = 1
+        retry_timeout_seconds = 1
         while not self.roomba_connected:
             try:
                 if self.client is None:
@@ -573,6 +574,8 @@ class Roomba(object):
                 await self.event_wait(self.is_connected, 1)    #wait for MQTT on_connect to fire (timeout 1 second)
             except (ConnectionRefusedError, OSError) as e:
                 if e.errno == 111:      #errno.ECONNREFUSED
+                    # It usually means something else is already connected to the Roomba, 
+                    # force close the app, and reboot the roomba (press and hold the Clean button for 20 seconds). You should then be able to connect.
                     self.log.error('Unable to Connect to roomba {}, make sure nothing else is connected (app?), '
                                    'as only one connection at a time is allowed'.format(self.roombaName))
                 elif e.errno == 113:    #errno.No Route to Host
@@ -580,12 +583,14 @@ class Roomba(object):
                 else:
                     self.log.error("Connection Error: {} ".format(e))
                 
-                await asyncio.sleep(retry_timeout)
+                await asyncio.sleep(retry_timeout_seconds)
                 self.log.error("Attempting retry Connection# {}".format(count))
                 
                 count += 1
-                if count >= max_retries:
-                    retry_timeout = 60
+                if count > max_retries:
+                    #retry_timeout_seconds = 5
+                    # Or just exit
+                    exit(-1)
                     
             except asyncio.CancelledError:
                 self.log.error('Connection Cancelled')
@@ -762,6 +767,7 @@ class Roomba(object):
         except socket.error:
             self.log.error("Unable to connect to MQTT Broker")
             self.mqttc = None
+            exit(-1)
         return self.mqttc
         
     def broker_on_connect(self, client, userdata, flags, rc):
@@ -1044,6 +1050,7 @@ class Roomba(object):
         Returns map enabled True/False
         '''
         if not HAVE_PIL: #can't draw a map without PIL!
+            print("WARNING: No PIL detected, can't draw.")
             return False
 
         if Image.__version__ < "4.1.1":

@@ -10,4 +10,7 @@ build/
 *_map.html
 *.log*
 *.txt
+!requirements*.txt
 *.bak
+venv/
+_MyTestFolder/
